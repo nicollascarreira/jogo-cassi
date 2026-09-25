@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Nossa Jornada ❤️</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+    body, html { width: 100%; height: 100%; overflow: hidden; background-color: #1a0b1e; font-family: 'VT323', monospace, sans-serif; color: #fff; }
+
+    #game-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #000; overflow: hidden; }
+    canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
+
+    #game-hud { position: absolute; top: 15px; left: 15px; right: 15px; display: flex; justify-content: space-between; align-items: center; pointer-events: none; z-index: 10; }
+    .hud-left { display: flex; gap: 10px; pointer-events: auto; }
+    .hud-badge { background: rgba(30, 15, 35, 0.85); border: 2px solid #ff758f; border-radius: 20px; padding: 6px 14px; font-size: 20px; color: #ffb3c1; box-shadow: 0 4px 10px rgba(0,0,0,0.4), 0 0 10px rgba(255,117,143,0.5); display: flex; align-items: center; gap: 8px; backdrop-filter: blur(4px); }
+    .circle-btn { pointer-events: auto; background: rgba(30, 15, 35, 0.85); border: 2px solid #ff758f; border-radius: 50%; width: 42px; height: 42px; color: #fff; font-size: 18px; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: transform 0.2s, background 0.2s, box-shadow 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.4), 0 0 10px rgba(255,117,143,0.5); }
+    .circle-btn:hover { transform: scale(1.1); background: #ff758f; box-shadow: 0 4px 15px rgba(0,0,0,0.5), 0 0 20px rgba(255,117,143,0.8); }
+
+    .overlay-screen { position: absolute; inset: 0; background: linear-gradient(135deg, rgba(35, 12, 39, 0.95), rgba(74, 25, 66, 0.95)); display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px; z-index: 100; transition: opacity 0.5s ease; }
+    .overlay-screen.hidden { opacity: 0; pointer-events: none; }
+    .fade-overlay { position: absolute; inset: 0; background: #000; z-index: 150; opacity: 0; pointer-events: none; transition: opacity 1s ease; }
+    .fade-overlay.active { opacity: 1; pointer-events: auto; }
+
+    #phase-selection-screen { z-index: 110; background: linear-gradient(135deg, #1a0b1e, #4a1942); overflow-y: auto; justify-content: flex-start; padding-top: 40px; }
+    .phases-grid { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; max-width: 800px; margin-top: 30px; padding-bottom: 40px; }
+    .phase-card { width: 140px; height: 160px; background: rgba(30, 15, 35, 0.85); border: 2px solid #ff758f; border-radius: 12px; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; box-shadow: 0 0 15px rgba(255,117,143,0.3); transition: transform 0.2s, box-shadow 0.2s, background 0.2s; }
+    .phase-card:hover:not(.locked) { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(255,117,143,0.6); background: rgba(74, 25, 66, 0.9); }
+    .phase-card.locked { border-color: #555; background: rgba(20, 20, 20, 0.8); color: #777; cursor: not-allowed; box-shadow: none; }
+    .phase-number { font-family: 'Press Start 2P', monospace; font-size: 16px; margin-bottom: 10px; color: #ffb3c1; }
+    .phase-card.locked .phase-number { color: #555; }
+    .phase-icon { font-size: 32px; margin-bottom: 10px; }
+    .phase-date { font-size: 14px; color: #ff758f; }
+    .phase-card.locked .phase-date { color: #555; }
+
+    .pixel-title { font-family: 'Press Start 2P', monospace; font-size: 24px; color: #ff758f; text-shadow: 3px 3px 0px #590d22, 0 0 15px rgba(255,117,143,0.6); margin-bottom: 12px; line-height: 1.4; }
+    .pixel-subtitle { font-size: 24px; color: #ffb3c1; margin-bottom: 24px; }
+
+    .btn-main { font-family: 'Press Start 2P', monospace; font-size: 14px; padding: 14px 28px; background: linear-gradient(to bottom, #ff758f, #c9184a); color: #fff; border: 3px solid #fff; border-radius: 8px; cursor: pointer; box-shadow: 0 6px 0 #800f2f, 0 0 20px rgba(255,117,143,0.6); transition: all 0.1s ease; margin-top: 10px; }
+    .btn-main:active { transform: translateY(4px); box-shadow: 0 2px 0 #800f2f; }
+    .btn-main:hover { background: linear-gradient(to bottom, #ff8fa3, #ff4d6d); box-shadow: 0 6px 0 #800f2f, 0 0 30px rgba(255,117,143,0.9); }
+    .btn-back { background: transparent; border: 2px solid #ffb3c1; box-shadow: none; color: #ffb3c1; }
+    .btn-back:hover { background: rgba(255, 179, 193, 0.2); box-shadow: 0 0 15px rgba(255, 179, 193, 0.4); }
+
+    .controls-hint { margin-top: 30px; font-size: 18px; color: #d8f3dc; opacity: 0.85; background: rgba(0,0,0,0.3); padding: 10px 20px; border-radius: 20px; border: 1px solid rgba(216,243,220,0.2); }
+
+    .modal-backdrop { position: absolute; inset: 0; background: rgba(15, 5, 20, 0.85); backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: center; z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.4s ease; }
+    .modal-backdrop.active { opacity: 1; pointer-events: auto; }
+    .polaroid-card { background: #fff; padding: 16px 16px 24px 16px; border-radius: 4px; box-shadow: 0 15px 35px rgba(0,0,0,0.6), 0 0 20px rgba(255,117,143,0.5); width: 90%; max-width: 360px; color: #2b2b2b; transform: rotate(-2deg) scale(0.9); transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    .modal-backdrop.active .polaroid-card { transform: rotate(-1deg) scale(1); }
+    .polaroid-photo-frame { width: 100%; height: 260px; background: #ffe6eb; border: 2px dashed #ff758f; border-radius: 4px; overflow: hidden; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; margin-bottom: 16px; box-shadow: inset 0 0 10px rgba(255,117,143,0.2); }
+    .foto-memoria { width: 100%; height: 100%; object-fit: cover; object-position: center 15%; display: block; }
+    .placeholder-photo { text-align: center; padding: 15px; color: #c9184a; }
+    .placeholder-photo span { font-size: 40px; display: block; margin-bottom: 8px; }
+    .placeholder-photo p { font-size: 16px; font-weight: bold; }
+    .polaroid-caption { font-family: 'VT323', monospace; font-size: 22px; color: #333; text-align: center; line-height: 1.3; margin-bottom: 16px; }
+    .polaroid-title { font-family: 'Press Start 2P', monospace; font-size: 12px; color: #c9184a; text-align: center; margin-bottom: 10px; text-shadow: 0 0 5px rgba(201,24,74,0.3); }
+    .btn-secondary { font-family: 'Press Start 2P', monospace; font-size: 11px; padding: 10px 18px; background: #ff758f; color: white; border: none; border-radius: 20px; cursor: pointer; display: block; margin: 0 auto; box-shadow: 0 4px 10px rgba(255,117,143,0.4), 0 0 10px rgba(255,117,143,0.5); transition: background 0.2s, transform 0.1s, box-shadow 0.2s; }
+    .btn-secondary:hover { background: #ff4d6d; transform: scale(1.05); box-shadow: 0 4px 15px rgba(255,77,109,0.6), 0 0 15px rgba(255,77,109,0.8); }
+
+    .envelope-wrapper { perspective: 1000px; cursor: pointer; }
+    .envelope { width: 260px; height: 180px; background: #ff4d6d; border-radius: 8px; position: relative; box-shadow: 0 15px 30px rgba(0,0,0,0.5), 0 0 20px rgba(255,77,109,0.6); display: flex; justify-content: center; align-items: center; transition: transform 0.6s ease; animation: pulseEnvelope 2s infinite ease-in-out; }
+    @keyframes pulseEnvelope { 0%, 100% { transform: scale(1); box-shadow: 0 15px 30px rgba(0,0,0,0.5), 0 0 20px rgba(255,77,109,0.6); } 50% { transform: scale(1.05); box-shadow: 0 20px 40px rgba(0,0,0,0.6), 0 0 40px rgba(255,77,109,0.9); } }
+    .envelope::before { content: ''; position: absolute; top: 0; width: 0; height: 0; border-left: 130px solid transparent; border-right: 130px solid transparent; border-top: 100px solid #ff758f; transform-origin: top; transition: transform 0.5s ease; }
+    .envelope.open::before { transform: rotateX(180deg); }
+    .envelope-heart { font-size: 48px; z-index: 2; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3)); }
+
+    .final-letter-card { background: #fff0f3; border: 4px solid #ff758f; border-radius: 12px; padding: 24px; width: 90%; max-width: 480px; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 50px rgba(0,0,0,0.8), 0 0 30px rgba(255,117,143,0.8); color: #590d22; text-align: center; position: relative; animation: fadeInScale 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    @keyframes fadeInScale { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
+    .final-letter-title { font-family: 'Press Start 2P', monospace; font-size: 16px; color: #c9184a; margin-bottom: 16px; line-height: 1.4; text-shadow: 0 0 5px rgba(201,24,74,0.3); }
+    .final-photo-frame { width: 100%; height: 260px; background: #ffccd5; border-radius: 8px; border: 2px dashed #ff758f; margin-bottom: 16px; overflow: hidden; display: flex; justify-content: center; align-items: center; box-shadow: inset 0 0 10px rgba(255,117,143,0.2); }
+    .final-letter-text { font-size: 22px; line-height: 1.4; white-space: pre-wrap; margin-bottom: 24px; text-align: left; background: rgba(255,255,255,0.6); padding: 14px; border-radius: 8px; }
+
+    #mobile-controls { position: absolute; bottom: 25px; left: 25px; width: 140px; height: 140px; display: none; z-index: 50; touch-action: none; }
+    .dpad-btn { position: absolute; width: 46px; height: 46px; background: rgba(255,117,143,0.4); border: 2px solid rgba(255,255,255,0.7); border-radius: 12px; display: flex; justify-content: center; align-items: center; font-size: 22px; color: #fff; backdrop-filter: blur(4px); box-shadow: 0 0 10px rgba(255,117,143,0.3); }
+    .dpad-btn:active, .dpad-btn.active { background: rgba(255,77,109,0.8); transform: scale(0.95); box-shadow: 0 0 15px rgba(255,77,109,0.6); }
+    #dpad-up { top: 0; left: 47px; }
+    #dpad-down { bottom: 0; left: 47px; }
+    #dpad-left { top: 47px; left: 0; }
+    #dpad-right { top: 47px; right: 0; }
+
+    /* Mobile Mode */
+    body.mobile-mode #mobile-controls { display: block; width: 180px; height: 180px; }
+    body.mobile-mode .dpad-btn { width: 56px; height: 56px; font-size: 28px; }
+    body.mobile-mode #dpad-up { top: 0; left: 62px; }
+    body.mobile-mode #dpad-down { bottom: 0; left: 62px; }
+    body.mobile-mode #dpad-left { top: 62px; left: 0; }
+    body.mobile-mode #dpad-right { top: 62px; right: 0; }
+    body.mobile-mode .phases-grid { gap: 10px; max-width: 95vw; }
+    body.mobile-mode .phase-card { width: 120px; height: 140px; }
+    body.mobile-mode .polaroid-card { max-width: 95vw; padding: 12px; }
+    body.mobile-mode .polaroid-caption { font-size: 18px; }
+    body.mobile-mode .final-letter-card { width: 95vw; padding: 15px; }
+    body.mobile-mode .final-letter-text { font-size: 18px; }
+    body.mobile-mode .pixel-title { font-size: 18px; }
+    body.mobile-mode .pixel-subtitle { font-size: 16px; }
+  </style>
+</head>
+<body>
+  <div class="fade-overlay" id="fade-overlay"></div>
+
+  <!-- Global HUD (Visível sempre) -->
+  <div id="global-hud" style="position: absolute; top: 15px; right: 15px; z-index: 200; display: flex; gap: 10px; pointer-events: none;">
+    <button class="circle-btn" id="mobile-toggle" style="pointer-events: auto;" title="Modo Mobile">📱</button>
+    <button class="circle-btn" id="audio-toggle" style="pointer-events: auto;" title="Ligar/Desligar Som">🔊</button>
+  </div>
+
+  <!-- Tela de Seleção de Fases -->
+  <div class="overlay-screen" id="phase-selection-screen">
+    <h1 class="pixel-title">Nossa Jornada</h1>
+    <p class="pixel-subtitle">Escolha uma fase para jogar</p>
+    <div class="phases-grid" id="phases-grid"></div>
+  </div>
+
+  <div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="game-hud">
+      <div class="hud-left">
+        <button class="circle-btn" id="btn-back-hud" title="Voltar para as Fases">⬅️</button>
+        <div class="hud-badge">
+          <span>✨</span>
+          <span id="memory-counter">Memórias: 0/4</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tela Inicial da Fase -->
+    <div class="overlay-screen hidden" id="start-screen">
+      <h1 class="pixel-title" id="cfg-start-title">Fase 1 — O Início</h1>
+      <p class="pixel-subtitle" id="cfg-start-subtitle">Nosso Primeiro Capítulo ao Entardecer 🌅</p>
+      <button class="btn-main" id="start-btn">Começar Aventura ❤️</button>
+      <button class="btn-main btn-back" id="btn-back-start" style="margin-top: 15px;">Voltar</button>
+      <div class="controls-hint">
+        💡 Move com setas ⬆️⬇️⬅️➡️ ou WASD<br>📱 Toque na tela para andar/interagir
+      </div>
+    </div>
+
+    <!-- Modal de Polaroid / Memória -->
+    <div class="modal-backdrop" id="memory-modal">
+      <div class="polaroid-card">
+        <div class="polaroid-title" id="modal-memory-title">Memória Encontrada!</div>
+        <div class="polaroid-photo-frame" id="modal-memory-photo"></div>
+        <p class="polaroid-caption" id="modal-memory-text"></p>
+        <button class="btn-secondary" id="modal-close-btn">Guardar no Coração ❤️</button>
+      </div>
+    </div>
+
+    <!-- Modal Final (Envelope & Carta) -->
+    <div class="modal-backdrop" id="final-modal">
+      <div class="envelope-wrapper" id="envelope-step">
+        <div class="envelope" id="envelope-element"><span class="envelope-heart">💌</span></div>
+        <p style="text-align:center; margin-top: 15px; font-size: 22px; color: #ffb3c1; text-shadow: 0 0 5px rgba(255,179,193,0.5);">Clique para abrir sua carta!</p>
+      </div>
+      <div class="final-letter-card" id="letter-step" style="display: none;">
+        <h2 class="final-letter-title" id="final-title">Para Você, Meu Amor 💖</h2>
+        <div class="final-photo-frame" id="final-photo"></div>
+        <div class="final-letter-text" id="final-text"></div>
+        <div style="display: flex; gap: 10px; justify-content: center;">
+          <button class="btn-main" id="replay-btn" style="font-size: 11px; padding: 10px 20px;">Jogar Novamente 🔄</button>
+          <button class="btn-main btn-back" id="btn-back-end" style="font-size: 11px; padding: 10px 20px; margin-top:10px;">Voltar às Fases ⬅️</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- D-Pad para Celulares -->
+    <div id="mobile-controls">
+      <div class="dpad-btn" id="dpad-up">▲</div>
+      <div class="dpad-btn" id="dpad-down">▼</div>
+      <div class="dpad-btn" id="dpad-left">◄</div>
+      <div class="dpad-btn" id="dpad-right">►</div>
+    </div>
+  </div>
+
+  <script>
+    /* ==========================================================================
+       1. CONFIGURAÇÃO GERAL E TEXTOS EDITÁVEIS
+       ========================================================================== */
+    const CONFIG_FASES = [
+      { fase: 1, desbloqueiaEm: "2026-09-26", titulo: "O Início", subtitulo: "Nosso Primeiro Capítulo ao Entardecer 🌅" },
+      { fase: 2, desbloqueiaEm: "2026-10-26", titulo: "Fase 2", subtitulo: "Em breve..." },
+      { fase: 3, desbloqueiaEm: "2026-11-26", titulo: "Fase 3", subtitulo: "Em breve..." },
+      { fase: 4, desbloqueiaEm: "2026-12-26", titulo: "Fase 4", subtitulo: "Em breve..." },
+      { fase: 5, desbloqueiaEm: "2027-01-26", titulo: "Fase 5", subtitulo: "Em breve..." },
+      { fase: 6, desbloqueiaEm: "2027-02-26", titulo: "Fase 6", subtitulo: "Em breve..." },
+      { fase: 7, desbloqueiaEm: "2027-03-26", titulo: "Fase 7", subtitulo: "Em breve..." },
+      { fase: 8, desbloqueiaEm: "2027-04-26", titulo: "Fase 8", subtitulo: "Em breve..." },
+      { fase: 9, desbloqueiaEm: "2027-05-26", titulo: "Fase 9", subtitulo: "Em breve..." },
+      { fase: 10, desbloqueiaEm: "2027-06-26", titulo: "Fase 10", subtitulo: "Em breve..." }
+    ];
+
+    const GAME_CONFIG = {
+      title: "Fase 1 — O Início",
+      subtitle: "Um presente de 10 meses de sorrisos e memórias ❤️",
+
+      // Textos da Nova Cena da Caverna
+      names: { girl: "Cassi", snoopy: "Snoopy", npc: "Nicollas" },
+      kidnapSpeech: "Por favor, me salve!! 😱",
+      npcDialogues: [
+        "Ei! Aquele monstro de sombra levou o seu amigo cachorrinho...",
+        "A caverna é funda e perigosa. Você não pode ir de mãos vazias.",
+        "Leve isso com você. Seja corajosa e traga ele de volta!"
+      ],
+      weaponName: "Espada de Luz ✨",
+      battlePrompt: "Toque no monstro ou aperte ESPAÇO para atacar!",
+
+      colors: {
+        skyTop: "#3a0ca3", skyBottom: "#f72585", trail: "#e9c46a", trailBorder: "#f4a261", 
+        grass: "#2a9d8f", grassDark: "#264653", wood: "#8d99ae", houseRoof: "#d90429", houseWall: "#ffddd2",
+        caveBg: "#110914", caveFloor: "#2d1b2e" // Cores da Caverna
+      },
+
+      memories: [
+        { id: 1, title: "Capítulo I — O Primeiro Sorriso ✨", image: "foto1_sorriso.jpg", text: "Lembro exatamente do dia em que te vi pela primeira vez. O mundo pareceu ficar um pouco mais colorido e calmo." },
+        { id: 2, title: "Capítulo II — Nossas Risadas 🌸", image: "foto2_risadas.jpg", text: "Cada conversa boba com você se transforma na minha parte favorita do dia. Obrigado por me fazer sorrir tão fácil.", position: "center 60%" },
+        { id: 3, title: "Capítulo III — O Abraço Seguro 🌙", image: "foto3_abraco.jpg", text: "Em qualquer momento difícil, o seu abraço é o único lugar do mundo onde me sinto 100% em paz e em casa." },
+        { id: 4, title: "Capítulo IV — Segurando Sua Mão 🗝️", image: "foto4_caminhada.jpg", text: "Caminhar ao seu lado torna a vida muito mais leve. Agora, o caminho para a casinha está livre!" }
+      ],
+
+      finalLetter: {
+        title: "Feliz Nosso Mês, Meu Amor! 💌", image: "foto5_final.jpg", 
+        text: "Chegamos ao fim da nossa primeira fase de 10 jogos!\n\nEste é o meu pequeno presente feito à mão para te lembrar o quanto você é especial para mim. Cada passo que demos nessa trilha representa o carinho e a admiração imensa que tenho por você.\n\nMal posso esperar para viver todas as próximas fases ao seu lado.\n\nTe amo infinitamente! ❤️"
+      }
+    };
+
+    function renderPhaseCards() {
+      const grid = document.getElementById('phases-grid');
+      grid.innerHTML = '';
+      const hoje = new Date();
+      hoje.setHours(0,0,0,0);
+      CONFIG_FASES.forEach(fase => {
+        const dataDesbloqueio = new Date(fase.desbloqueiaEm + 'T00:00:00');
+        let isUnlocked = (fase.fase === 1) || (hoje >= dataDesbloqueio);
+        const card = document.createElement('div');
+        card.className = `phase-card ${isUnlocked ? 'unlocked' : 'locked'}`;
+        const [ano, mes, dia] = fase.desbloqueiaEm.split('-');
+        card.innerHTML = `<div class="phase-icon">${isUnlocked ? '💖' : '🔒'}</div>
+                          <div class="phase-number">Fase ${fase.fase}</div>
+                          <div class="phase-date">${isUnlocked ? 'Disponível' : `${dia}/${mes}/${ano}`}</div>`;
+        if (isUnlocked) card.addEventListener('click', () => iniciarTelaFase(fase));
+        grid.appendChild(card);
+      });
+    }
+
+    function iniciarTelaFase(faseData) {
+      document.getElementById('phase-selection-screen').classList.add('hidden');
+      document.getElementById('start-screen').classList.remove('hidden');
+      document.getElementById('cfg-start-title').innerText = "Fase " + faseData.fase + " — " + faseData.titulo;
+      document.getElementById('cfg-start-subtitle').innerText = faseData.subtitulo;
+    }
+
+    function voltarParaFases() {
+      gameState = 'START';
+      audio.muted = true;
+      document.getElementById('start-screen').classList.add('hidden');
+      document.getElementById('memory-modal').classList.remove('active');
+      document.getElementById('final-modal').classList.remove('active');
+      document.getElementById('letter-step').style.display = 'none';
+      document.getElementById('envelope-step').style.display = 'block';
+      document.getElementById('envelope-element').classList.remove('open');
+      document.getElementById('phase-selection-screen').classList.remove('hidden');
+      resetGameState();
+    }
+
+    /* ==========================================================================
+       2. MOTOR DE ÁUDIO SINTETIZADO
+       ========================================================================== */
+    class RetroSoundEngine {
+      constructor() { this.ctx = null; this.muted = false; this.bgmTimer = null; }
+      init() {
+        if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+      }
+      playTone(freq, type, duration, gainValue = 0.1) {
+        if (this.muted || !this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = type; osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+          gain.gain.setValueAtTime(gainValue, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+          osc.connect(gain); gain.connect(this.ctx.destination);
+          osc.start(); osc.stop(this.ctx.currentTime + duration);
+        } catch (e) {}
+      }
+      sfxPickup() { this.playTone(523.25, 'sine', 0.1, 0.15); setTimeout(() => this.playTone(659.25, 'sine', 0.1, 0.15), 80); }
+      sfxBump() { this.playTone(150, 'triangle', 0.15, 0.2); }
+      sfxHit() { this.playTone(200, 'square', 0.1, 0.2); } // Som de hit da espada
+      sfxEnemyHit() { this.playTone(100, 'sawtooth', 0.2, 0.2); }
+      sfxOpenGate() { this.playTone(440, 'sine', 0.15, 0.1); setTimeout(() => this.playTone(554.37, 'sine', 0.15, 0.1), 100); }
+      sfxWin() { const notes = [523.25, 659.25, 783.99, 1046.50]; notes.forEach((f, i) => setTimeout(() => this.playTone(f, 'triangle', 0.3, 0.2), i*150)); }
+      startBGM() {
+        if (this.bgmTimer) clearInterval(this.bgmTimer);
+        const melody = [261.63, 329.63, 392.00, 329.63, 349.23, 440.00, 349.23, 293.66];
+        let step = 0;
+        this.bgmTimer = setInterval(() => {
+          if (!this.muted && this.ctx && (gameState.startsWith('PLAYING') || gameState === 'CAVE_EXPLORATION')) {
+            this.playTone(melody[step % melody.length], 'sine', 0.8, 0.03);
+            step++;
+          }
+        }, 600);
+      }
+    }
+    const audio = new RetroSoundEngine();
+
+    /* ==========================================================================
+       3. ESTRUTURA DO JOGO E ESTADOS
+       ========================================================================== */
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    let V_WIDTH = 480, V_HEIGHT = 320, scaleRatio = 1;
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+      scaleRatio = Math.max(1, Math.min(3, window.innerWidth / 480));
+      V_WIDTH = canvas.width / scaleRatio; V_HEIGHT = canvas.height / scaleRatio;
+      ctx.imageSmoothingEnabled = false;
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    const MAP_WIDTH = 480, MAP_HEIGHT = 2000;
+    
+    // Estados do jogo: START, PLAYING_SURFACE, MODAL, KIDNAP_SCENE, CAVE_EXPLORATION, CAVE_DIALOGUE, CAVE_BATTLE, CAVE_VICTORY, PLAYING_TOGETHER, CUTSCENE, END
+    let gameState = 'START'; 
+    let mapContext = 'SURFACE'; // SURFACE ou CAVE
+    let collectedCount = 0;
+    const keys = { up: false, down: false, left: false, right: false, action: false };
+
+    let player = {}, girlPlayer = {}, camera = { x: 0, y: 0 };
+    let patrolEnemy = {}, mudPuddle = {}, lockGate = {}, orbList = [], particles = [], heartParticles = [];
+    
+    // Elementos da Caverna
+    let bigMonster = { x: 210, y: -100, width: 40, height: 40, active: false, hp: 10, maxHp: 10, hitFlash: 0 };
+    let hole = { x: 210, y: 350, radius: 0, active: false };
+    let caveNPC = { x: 230, y: 1000, width: 20, height: 26, talked: false };
+    let dialogue = { textLines: [], currentLine: 0, charIndex: 0, timer: 0, weaponGiven: false };
+    let caveDecorations = [], caveMonsters = [];
+    let caveKey = { x: 0, y: 0, active: false, collected: false, floatY: 0 };
+    let snoopyCage = { x: 160, y: 250, active: false };
+    
+    let fadeAlpha = 0, fadeDir = 0, sceneTimer = 0; // Para transições
+
+    function resetGameState() {
+      collectedCount = 0;
+      document.getElementById('memory-counter').innerText = `Memórias: 0/4`;
+      
+      // Snoopy
+      player = { x: 230, y: MAP_HEIGHT - 120, width: 24, height: 20, speed: 2.3, facing: 'up', animFrame: 0, animTimer: 0, isMoving: false, visible: true, kidnapped: false };
+      
+      // Garota (Fica escondida no inicio)
+      girlPlayer = { x: 230, y: MAP_HEIGHT - 100, width: 18, height: 26, speed: 2.5, facing: 'up', animFrame: 0, animTimer: 0, isMoving: false, hasWeapon: false };
+
+      camera.x = (MAP_WIDTH - V_WIDTH) / 2; camera.y = MAP_HEIGHT - V_HEIGHT;
+      mapContext = 'SURFACE';
+      bigMonster = { x: 210, y: -100, width: 40, height: 40, active: false, hp: 10, maxHp: 10, hitFlash: 0 };
+      hole = { x: 210, y: 350, radius: 0, active: false };
+      caveNPC.talked = false;
+      dialogue.weaponGiven = false;
+      
+      caveKey = { x: 0, y: 0, active: false, collected: false, floatY: 0 };
+      snoopyCage = { x: 160, y: 250, active: false };
+      caveDecorations = [];
+      for (let i = 0; i < 20; i++) {
+        let type = Math.random();
+        caveDecorations.push({
+          x: 120 + Math.random() * 200, y: 450 + Math.random() * 800,
+          type: type < 0.3 ? 'crystal' : (type < 0.6 ? 'stalagmite' : 'torch'),
+          pulse: Math.random() * Math.PI
+        });
+      }
+      caveMonsters = [
+        { x: 160, y: 1100, width: 20, height: 20, speed: 1.2, dir: 1, minX: 120, maxX: 260 },
+        { x: 250, y: 800, width: 20, height: 20, speed: 1.5, dir: -1, minX: 150, maxX: 300 },
+        { x: 180, y: 600, width: 20, height: 20, speed: 1.8, dir: 1, minX: 140, maxX: 280 }
+      ];
+
+      patrolEnemy = { x: 180, y: 1350, width: 20, height: 20, speed: 1.5, dir: 1, minX: 150, maxX: 310 };
+      mudPuddle = { x: 210, y: 950, width: 60, height: 40 };
+      lockGate = { y: 550, isOpen: false };
+      orbList = [
+        { id: 1, x: 230, y: 1700, collected: false, pulse: 0 }, { id: 2, x: 170, y: 1200, collected: false, pulse: 0 },
+        { id: 3, x: 300, y: 800,  collected: false, pulse: 0 }, { id: 4, x: 230, y: 480,  collected: false, pulse: 0 }
+      ];
+      particles = [];
+      for (let i = 0; i < 35; i++) particles.push({ x: Math.random()*MAP_WIDTH, y: Math.random()*MAP_HEIGHT, size: Math.random()*2+1, speedY: -0.2, alpha: Math.random(), pulseSpeed: 0.02 });
+      heartParticles = [];
+    }
+
+    function doFade(direction, callback) {
+      const overlay = document.getElementById('fade-overlay');
+      if (direction === 'in') { // Tela escurece
+        overlay.classList.add('active');
+        setTimeout(() => { if (callback) callback(); }, 1000);
+      } else { // Tela clareia
+        overlay.classList.remove('active');
+        setTimeout(() => { if (callback) callback(); }, 1000);
+      }
+    }
+
+    /* ==========================================================================
+       4. LÓGICA DE MOVIMENTO E UPDATE DE CENAS
+       ========================================================================== */
+    function updateGameLogic() {
+      // 1. Atualizar Controles e Físicas
+      let p = (gameState === 'CAVE_EXPLORATION' || gameState === 'CAVE_BATTLE' || gameState === 'CAVE_KEY_DROP') ? girlPlayer : player;
+      
+      if (gameState === 'PLAYING_SURFACE' || gameState === 'CAVE_EXPLORATION' || gameState === 'PLAYING_TOGETHER' || gameState === 'CAVE_BATTLE' || gameState === 'CAVE_KEY_DROP') {
+        let dx = 0, dy = 0;
+        if (keys.up) dy -= 1; if (keys.down) dy += 1; if (keys.left) dx -= 1; if (keys.right) dx += 1;
+        if (dx !== 0 && dy !== 0) { dx *= 0.7071; dy *= 0.7071; }
+        
+        p.isMoving = (dx !== 0 || dy !== 0);
+        if (dx < 0) p.facing = 'left'; if (dx > 0) p.facing = 'right'; if (dy < 0) p.facing = 'up'; if (dy > 0) p.facing = 'down';
+
+        let currentSpeed = p.speed;
+        if (mapContext === 'SURFACE' && p.x + p.width > mudPuddle.x && p.x < mudPuddle.x + mudPuddle.width && p.y + p.height > mudPuddle.y && p.y < mudPuddle.y + mudPuddle.height) currentSpeed *= 0.4; 
+
+        let newX = p.x + dx * currentSpeed; let newY = p.y + dy * currentSpeed;
+
+        const trailMinX = 140, trailMaxX = 320 - p.width;
+        if (newX < trailMinX) newX = trailMinX; if (newX > trailMaxX) newX = trailMaxX;
+        
+        if (mapContext === 'SURFACE' && !lockGate.isOpen && newY < lockGate.y + 10 && p.y >= lockGate.y + 10) newY = lockGate.y + 10;
+        if (newY > MAP_HEIGHT - 60) newY = MAP_HEIGHT - 60;
+        if (mapContext === 'SURFACE' && newY < 180) { triggerVictoryCutscene(); return; }
+        
+        p.x = newX; p.y = newY;
+        if (p.isMoving) { p.animTimer++; if (p.animTimer % 10 === 0) p.animFrame = (p.animFrame === 0) ? 1 : 0; } else p.animFrame = 0;
+
+        // Se estão juntos, Snoopy segue a garota
+        if (gameState === 'PLAYING_TOGETHER' && p === girlPlayer) {
+          let sDX = p.x - player.x, sDY = (p.y + 30) - player.y; // Segue um pouco abaixo
+          let sDist = Math.hypot(sDX, sDY);
+          if (sDist > 10) {
+            player.x += (sDX / sDist) * player.speed; player.y += (sDY / sDist) * player.speed;
+            player.isMoving = true; player.animTimer++; if (player.animTimer % 10 === 0) player.animFrame = (player.animFrame === 0) ? 1 : 0;
+            if (Math.abs(sDX) > Math.abs(sDY)) player.facing = sDX > 0 ? 'right' : 'left'; else player.facing = sDY > 0 ? 'down' : 'up';
+          } else { player.isMoving = false; player.animFrame = 0; }
+        }
+
+        // Colisões e Gatilhos
+        if (mapContext === 'SURFACE') {
+          if (p.x < patrolEnemy.x + patrolEnemy.width && p.x + p.width > patrolEnemy.x && p.y < patrolEnemy.y + patrolEnemy.height && p.y + p.height > patrolEnemy.y) { audio.sfxBump(); p.y += 25; }
+          orbList.forEach(orb => {
+            if (!orb.collected && Math.hypot((p.x + p.width/2) - orb.x, (p.y + p.height/2) - orb.y) < 22) {
+              orb.collected = true; collectedCount++; audio.sfxPickup();
+              document.getElementById('memory-counter').innerText = `Memórias: ${collectedCount}/4`;
+              if (collectedCount >= 3 && !lockGate.isOpen) { lockGate.isOpen = true; setTimeout(() => audio.sfxOpenGate(), 400); }
+              openMemoryModal(orb.id);
+            }
+          });
+
+          // Gatilho do Sequestro (quando Snoopy passa da coordenada Y=380 e fase de sequestro não ocorreu)
+          if (gameState === 'PLAYING_SURFACE' && p.y < 380 && !player.kidnapped) {
+            gameState = 'KIDNAP_SCENE'; sceneTimer = 0; bigMonster.active = true; bigMonster.y = player.y - 200; bigMonster.x = player.x - 10;
+          }
+        } else if (mapContext === 'CAVE') {
+          if (gameState === 'CAVE_EXPLORATION') {
+            caveMonsters.forEach(m => {
+              if (p.x < m.x + m.width && p.x + p.width > m.x && p.y < m.y + m.height && p.y + p.height > m.y) { audio.sfxBump(); p.y += 25; }
+            });
+            // Caverna - Interação NPC
+            if (!caveNPC.talked && Math.hypot(p.x - caveNPC.x, p.y - caveNPC.y) < 50) {
+              gameState = 'CAVE_DIALOGUE'; dialogue.textLines = GAME_CONFIG.npcDialogues; dialogue.currentLine = 0; dialogue.charIndex = 0; keys.action = false;
+            }
+            // Caverna - Batalha Monstro
+            if (p.y < 400 && caveNPC.talked) {
+              gameState = 'CAVE_BATTLE'; bigMonster.y = 200; bigMonster.x = 220; bigMonster.hp = bigMonster.maxHp; keys.action = false; 
+              snoopyCage.active = true; player.x = snoopyCage.x + 5; player.y = snoopyCage.y + 5; player.visible = true; player.kidnapped = false;
+            }
+          }
+          // Pegar Chave
+          if (gameState === 'CAVE_KEY_DROP' && caveKey.active && !caveKey.collected && Math.hypot((p.x+p.width/2) - caveKey.x, (p.y+p.height/2) - caveKey.y) < 20) {
+            caveKey.collected = true; audio.sfxPickup();
+          }
+          // Libertar Snoopy
+          if (gameState === 'CAVE_KEY_DROP' && caveKey.collected && Math.hypot((p.x+p.width/2) - snoopyCage.x, (p.y+p.height/2) - snoopyCage.y) < 30) {
+            audio.sfxOpenGate(); snoopyCage.active = false; gameState = 'CAVE_VICTORY'; sceneTimer = 0;
+          }
+        }
+      }
+
+      // 2. Atualizar Câmera
+      camera.x = p.x - V_WIDTH / 2 + p.width/2;
+      camera.y = p.y - V_HEIGHT / 2 + p.height/2;
+      if (camera.y < 0) camera.y = 0; if (camera.y > MAP_HEIGHT - V_HEIGHT) camera.y = MAP_HEIGHT - V_HEIGHT;
+
+      // 3. Atualizar Obstáculos e Cenas Específicas
+      if (mapContext === 'SURFACE') {
+        patrolEnemy.x += patrolEnemy.speed * patrolEnemy.dir;
+        if (patrolEnemy.x > patrolEnemy.maxX || patrolEnemy.x < patrolEnemy.minX) patrolEnemy.dir *= -1;
+        orbList.forEach(orb => orb.pulse += 0.05);
+      } else if (mapContext === 'CAVE') {
+        if (gameState === 'CAVE_EXPLORATION') {
+          caveMonsters.forEach(m => {
+            m.x += m.speed * m.dir;
+            if (m.x > m.maxX || m.x < m.minX) m.dir *= -1;
+          });
+        }
+        caveDecorations.forEach(d => d.pulse += 0.05);
+        if (caveKey.active && !caveKey.collected) caveKey.floatY = Math.sin(Date.now()/200) * 3;
+      }
+      particles.forEach(pt => { pt.y += pt.speedY; pt.alpha += Math.sin(pt.pulseSpeed)*0.02; if (pt.y < 0) pt.y = MAP_HEIGHT; });
+
+      if (gameState === 'KIDNAP_SCENE') {
+        sceneTimer++;
+        if (sceneTimer < 60) { bigMonster.y += 3; } // Monstro cai
+        else if (sceneTimer === 60) { audio.sfxBump(); hole.active = true; hole.radius = 40; } // Agarra Snoopy
+        else if (sceneTimer > 120 && sceneTimer < 180) { bigMonster.y += 2; } // Pula no buraco
+        else if (sceneTimer === 180) { 
+          doFade('in', () => {
+            mapContext = 'CAVE'; gameState = 'CAVE_EXPLORATION'; player.kidnapped = true; player.visible = false;
+            girlPlayer.x = hole.x; girlPlayer.y = MAP_HEIGHT - 100; // Garota entra
+            doFade('out');
+          });
+        }
+        
+        if (sceneTimer >= 60 && sceneTimer < 180) {
+          player.x = bigMonster.x + 8;
+          player.y = bigMonster.y - 8;
+        }
+      }
+
+      if (gameState === 'CAVE_DIALOGUE') {
+        dialogue.timer++;
+        if (dialogue.timer % 3 === 0 && dialogue.charIndex < dialogue.textLines[dialogue.currentLine].length) { dialogue.charIndex++; audio.sfxBump(); }
+        if (keys.action) {
+          keys.action = false;
+          if (dialogue.charIndex < dialogue.textLines[dialogue.currentLine].length) {
+            dialogue.charIndex = dialogue.textLines[dialogue.currentLine].length; // skip
+          } else {
+            dialogue.currentLine++; dialogue.charIndex = 0;
+            if (dialogue.currentLine >= dialogue.textLines.length) {
+              gameState = 'CAVE_EXPLORATION'; caveNPC.talked = true; dialogue.weaponGiven = true; girlPlayer.hasWeapon = true; audio.sfxPickup();
+            }
+          }
+        }
+      }
+
+      if (gameState === 'CAVE_BATTLE') {
+        // Movimento do monstro
+        let dx = girlPlayer.x - bigMonster.x, dy = girlPlayer.y - bigMonster.y;
+        let dist = Math.hypot(dx, dy);
+        if (dist > 30) { bigMonster.x += (dx/dist)*0.6; bigMonster.y += (dy/dist)*0.6; }
+        bigMonster.x += Math.sin(Date.now() / 200) * 2;
+        if (bigMonster.hitFlash > 0) bigMonster.hitFlash--;
+        // Se bater na garota
+        if (dist < 25) { audio.sfxBump(); girlPlayer.y += 15; }
+
+        if (keys.action) {
+          keys.action = false;
+          audio.sfxHit();
+          girlPlayer.animFrame = 1; setTimeout(() => girlPlayer.animFrame=0, 150); // atk anim
+          bigMonster.hp -= 1; bigMonster.hitFlash = 10;
+          if (bigMonster.hp <= 0) {
+            audio.sfxWin();
+            gameState = 'CAVE_KEY_DROP'; 
+            caveKey.active = true; caveKey.x = bigMonster.x + 20; caveKey.y = bigMonster.y + 20;
+            bigMonster.active = false;
+          }
+        }
+      }
+
+      if (gameState === 'CAVE_VICTORY') {
+        sceneTimer++;
+        if (sceneTimer < 30) { player.y -= 2; } // Snoopy pula de alegria
+        else if (sceneTimer < 60) { player.y += 2; }
+        if (sceneTimer > 120 && sceneTimer < 122) {
+          doFade('in', () => {
+            mapContext = 'SURFACE'; gameState = 'PLAYING_TOGETHER';
+            girlPlayer.x = hole.x; girlPlayer.y = hole.y + 30; player.x = hole.x; player.y = hole.y;
+            doFade('out');
+          });
+        }
+      }
+      
+      if (gameState === 'END') {
+        if (Math.random() < 0.3) heartParticles.push({ x: camera.x + Math.random()*V_WIDTH, y: camera.y + V_HEIGHT + 10, size: Math.random()*10+8, speedY: -1.5, speedX: (Math.random()-0.5)*0.8, alpha: 1 });
+        heartParticles.forEach((hp, idx) => { hp.y += hp.speedY; hp.x += hp.speedX; hp.alpha -= 0.005; if (hp.alpha <= 0) heartParticles.splice(idx, 1); });
+      }
+    }
+
+    /* ==========================================================================
+       5. RENDERIZAÇÃO GRÁFICA
+       ========================================================================== */
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.save();
+      ctx.scale(scaleRatio, scaleRatio);
+      ctx.translate(-Math.round(camera.x), -Math.round(camera.y));
+
+      if (mapContext === 'SURFACE') {
+        drawSurfaceBackground(); drawSurfaceScenery(); drawMudPuddle(); drawGate(); drawOrbs(); drawPatrolEnemy(); drawCabin();
+        if (hole.active) { ctx.fillStyle = '#111'; ctx.beginPath(); ctx.ellipse(hole.x+15, hole.y+15, hole.radius, hole.radius/2, 0, 0, Math.PI*2); ctx.fill(); }
+      } else {
+        drawCaveBackground(); drawCaveScenery();
+      }
+      
+      if (player.visible && gameState !== 'CAVE_EXPLORATION' && gameState !== 'CAVE_DIALOGUE') drawSnoopy();
+      if (mapContext === 'CAVE' || gameState === 'PLAYING_TOGETHER') drawGirl();
+      
+      if (mapContext === 'CAVE' && !caveNPC.talked) drawNPC();
+      if ((gameState === 'KIDNAP_SCENE' || gameState === 'CAVE_BATTLE' || gameState === 'CAVE_VICTORY') && bigMonster.active) drawBigMonster();
+
+      if (mapContext === 'SURFACE') { drawForegroundTrees(); drawParticles(); }
+
+      if (gameState === 'KIDNAP_SCENE' && sceneTimer > 60 && sceneTimer < 150) {
+        // Balão de fala
+        ctx.fillStyle = '#fff'; ctx.fillRect(player.x - 20, player.y - 40, 140, 30);
+        ctx.fillStyle = '#000'; ctx.font = '10px monospace'; ctx.fillText(GAME_CONFIG.kidnapSpeech, player.x - 15, player.y - 20);
+      }
+
+      if (gameState === 'END') drawHeartParticles();
+      
+      ctx.restore(); // Fim do mundo scroolado, UI estática abaixo
+
+      // UI sobreposta fixa na tela
+      if (gameState === 'CAVE_DIALOGUE') {
+        ctx.fillStyle = 'rgba(0,0,0,0.8)'; ctx.strokeStyle = '#ff758f'; ctx.lineWidth = 4;
+        ctx.fillRect(V_WIDTH*0.1, V_HEIGHT*0.7, V_WIDTH*0.8, V_HEIGHT*0.25);
+        ctx.strokeRect(V_WIDTH*0.1, V_HEIGHT*0.7, V_WIDTH*0.8, V_HEIGHT*0.25);
+        ctx.fillStyle = '#fff'; ctx.font = '14px VT323';
+        let text = dialogue.textLines[dialogue.currentLine].substring(0, dialogue.charIndex);
+        
+        // Quebra de linha simples
+        let words = text.split(' '), line = '', yPos = V_HEIGHT*0.7 + 25;
+        for (let n = 0; n < words.length; n++) {
+          let testLine = line + words[n] + ' ';
+          if (ctx.measureText(testLine).width > V_WIDTH*0.7) { ctx.fillText(line, V_WIDTH*0.15, yPos); line = words[n] + ' '; yPos += 20; } 
+          else line = testLine;
+        }
+        ctx.fillText(line, V_WIDTH*0.15, yPos);
+        
+        if (dialogue.charIndex === dialogue.textLines[dialogue.currentLine].length) {
+          ctx.fillStyle = '#ff758f'; ctx.fillText("▶ Toque/Aperte Espaço", V_WIDTH*0.6, V_HEIGHT*0.9);
+        }
+      }
+
+      if (gameState === 'CAVE_EXPLORATION' && dialogue.weaponGiven && mapContext === 'CAVE') {
+        ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.font = '12px Press Start 2P'; ctx.fillText("Você recebeu: " + GAME_CONFIG.weaponName, 20, V_HEIGHT - 20);
+      }
+
+      if (gameState === 'CAVE_BATTLE') {
+        ctx.fillStyle = '#000'; ctx.fillRect(V_WIDTH*0.2, 20, V_WIDTH*0.6, 15);
+        ctx.fillStyle = '#d90429'; ctx.fillRect(V_WIDTH*0.2, 20, (V_WIDTH*0.6)*(bigMonster.hp/bigMonster.maxHp), 15);
+        ctx.strokeStyle = '#fff'; ctx.strokeRect(V_WIDTH*0.2, 20, V_WIDTH*0.6, 15);
+        ctx.fillStyle = '#fff'; ctx.font = '12px VT323'; ctx.textAlign = 'center'; ctx.fillText(GAME_CONFIG.battlePrompt, V_WIDTH/2, 50); ctx.textAlign = 'left';
+      } else if (gameState === 'CAVE_KEY_DROP' && !caveKey.collected) {
+        ctx.fillStyle = '#fff'; ctx.font = '16px VT323'; ctx.textAlign = 'center'; ctx.fillText("Pegue a chave!", V_WIDTH/2, 50); ctx.textAlign = 'left';
+      } else if (gameState === 'CAVE_KEY_DROP' && caveKey.collected) {
+        ctx.fillStyle = '#fff'; ctx.font = '16px VT323'; ctx.textAlign = 'center'; ctx.fillText("Liberte o Snoopy!", V_WIDTH/2, 50); ctx.textAlign = 'left';
+      }
+    }
+
+    /* --- Desenhos Específicos --- */
+    function drawSurfaceBackground() { let grad = ctx.createLinearGradient(0, 0, 0, MAP_HEIGHT); grad.addColorStop(0, GAME_CONFIG.colors.skyTop); grad.addColorStop(1, GAME_CONFIG.colors.skyBottom); ctx.fillStyle = grad; ctx.fillRect(-2000, 0, 4000, MAP_HEIGHT); }
+    function drawSurfaceScenery() {
+      ctx.fillStyle = GAME_CONFIG.colors.grass; ctx.fillRect(-2000, 0, 4000, MAP_HEIGHT);
+      ctx.fillStyle = GAME_CONFIG.colors.trailBorder; ctx.fillRect(135, 0, 210, MAP_HEIGHT);
+      ctx.fillStyle = GAME_CONFIG.colors.trail; ctx.fillRect(140, 0, 200, MAP_HEIGHT);
+      ctx.fillStyle = 'rgba(0,0,0,0.08)'; for(let y=100;y<MAP_HEIGHT;y+=80){ctx.fillRect(160+(y%40),y,12,6);ctx.fillRect(260-(y%30),y+30,16,8);}
+      ctx.fillStyle = '#3a86ff'; ctx.fillRect(-2000, 1500, 4000, 40); ctx.fillStyle = '#8d99ae'; ctx.fillRect(130, 1495, 220, 50); ctx.fillStyle = '#6c757d'; for(let py=1500;py<1545;py+=10) ctx.fillRect(130,py,220,2); ctx.fillStyle='#495057'; ctx.fillRect(130,1495,220,4); ctx.fillRect(130,1541,220,4);
+    }
+    
+    function drawCaveBackground() { ctx.fillStyle = GAME_CONFIG.colors.caveBg; ctx.fillRect(-2000, 0, 4000, MAP_HEIGHT); }
+    function drawCaveScenery() { 
+      ctx.fillStyle = GAME_CONFIG.colors.caveFloor; ctx.fillRect(100, 0, 280, MAP_HEIGHT); 
+      // Pedrinhas
+      ctx.fillStyle = '#110914'; for(let y=100;y<MAP_HEIGHT;y+=50){ctx.fillRect(150+(y%80),y,10,10); ctx.fillRect(250-(y%40),y+20,8,8);}
+      // Decoracoes
+      caveDecorations.forEach(d => {
+        if (d.type === 'crystal') {
+          ctx.fillStyle = `rgba(0, 255, 255, ${0.7 + Math.sin(d.pulse)*0.3})`;
+          ctx.beginPath(); ctx.moveTo(d.x, d.y); ctx.lineTo(d.x+5, d.y-15); ctx.lineTo(d.x+10, d.y); ctx.fill();
+        } else if (d.type === 'stalagmite') {
+          ctx.fillStyle = '#4a4e69';
+          ctx.beginPath(); ctx.moveTo(d.x, d.y); ctx.lineTo(d.x+8, d.y-20); ctx.lineTo(d.x+16, d.y); ctx.fill();
+        } else if (d.type === 'torch') {
+          ctx.fillStyle = '#7f4f24'; ctx.fillRect(d.x, d.y-10, 4, 15);
+          ctx.fillStyle = `rgba(255, ${100+Math.random()*50}, 0, 0.9)`;
+          ctx.beginPath(); ctx.arc(d.x+2, d.y-12, 4 + Math.random()*2, 0, Math.PI*2); ctx.fill();
+        }
+      });
+      // Mini Monstros
+      caveMonsters.forEach(m => {
+        ctx.fillStyle = '#5a189a'; ctx.fillRect(m.x, m.y, m.width, m.height);
+        ctx.fillStyle = '#f72585'; ctx.fillRect(m.x+4, m.y+4, 4, 4); ctx.fillRect(m.x+12, m.y+4, 4, 4);
+      });
+      // Cage / Key
+      if (snoopyCage.active) {
+        ctx.strokeStyle = '#8d99ae'; ctx.lineWidth = 2; ctx.strokeRect(snoopyCage.x, snoopyCage.y, 34, 30);
+        ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(snoopyCage.x, snoopyCage.y, 34, 30);
+        for(let i=1; i<4; i++) { ctx.beginPath(); ctx.moveTo(snoopyCage.x + i*8.5, snoopyCage.y); ctx.lineTo(snoopyCage.x + i*8.5, snoopyCage.y+30); ctx.stroke(); }
+      }
+      if (caveKey.active && !caveKey.collected) {
+        let ky = caveKey.y + caveKey.floatY;
+        ctx.fillStyle = '#ffd60a'; ctx.fillRect(caveKey.x, ky, 12, 4); ctx.fillRect(caveKey.x+8, ky, 4, 8);
+        ctx.fillStyle = 'rgba(255,214,10,0.4)'; ctx.beginPath(); ctx.arc(caveKey.x+6, ky+2, 12, 0, Math.PI*2); ctx.fill();
+      }
+    }
+
+    function drawMudPuddle() { ctx.fillStyle='#6f4e37';ctx.beginPath();ctx.ellipse(mudPuddle.x+30,mudPuddle.y+20,30,20,0,0,Math.PI*2);ctx.fill(); ctx.fillStyle='#b08968';ctx.fillRect(mudPuddle.x-35,mudPuddle.y+10,8,24);ctx.fillRect(mudPuddle.x-45,mudPuddle.y+5,28,16);ctx.fillStyle='#ffb3c1';ctx.font='10px monospace';ctx.fillText('⚠️',mudPuddle.x-40,mudPuddle.y+17); }
+    function drawGate() {
+      const gY = lockGate.y;
+      if (!lockGate.isOpen) { ctx.fillStyle='#7f5539';ctx.fillRect(135,gY,90,12);ctx.fillRect(255,gY,90,12);ctx.fillStyle='#ffd166';ctx.fillRect(232,gY-4,16,20);ctx.fillStyle='#000';ctx.fillRect(238,gY+4,4,6); ctx.fillStyle='rgba(0,0,0,0.6)';ctx.fillRect(150,gY+20,180,20);ctx.fillStyle='#fff';ctx.font='10px VT323';ctx.textAlign='center';ctx.fillText('✨ Encontre 3 memórias para abrir!',240,gY+34);ctx.textAlign='left'; }
+      else { ctx.fillStyle='#7f5539';ctx.fillRect(135,gY-30,12,40);ctx.fillRect(333,gY-30,12,40); }
+    }
+    function drawOrbs() { orbList.forEach(orb=>{if(!orb.collected){let radius=8*(1+Math.sin(orb.pulse)*0.15);let grad=ctx.createRadialGradient(orb.x,orb.y,2,orb.x,orb.y,radius*2.5);grad.addColorStop(0,'rgba(255,214,165,0.9)');grad.addColorStop(0.5,'rgba(255,117,143,0.5)');grad.addColorStop(1,'rgba(255,117,143,0)');ctx.fillStyle=grad;ctx.beginPath();ctx.arc(orb.x,orb.y,radius*2.5,0,Math.PI*2);ctx.fill();ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(orb.x,orb.y,radius*0.7,0,Math.PI*2);ctx.fill();}}); }
+    function drawPatrolEnemy() { ctx.fillStyle='#f77f00';ctx.fillRect(patrolEnemy.x,patrolEnemy.y,patrolEnemy.width,patrolEnemy.height);ctx.fillStyle='#fff';ctx.fillRect(patrolEnemy.x+3,patrolEnemy.y+4,4,4);ctx.fillRect(patrolEnemy.x+13,patrolEnemy.y+4,4,4);ctx.fillStyle='#000';ctx.fillRect(patrolEnemy.x+4,patrolEnemy.y+5,2,2);ctx.fillRect(patrolEnemy.x+14,patrolEnemy.y+5,2,2);ctx.fillStyle='#d62828';ctx.fillRect(patrolEnemy.x+1,patrolEnemy.y-4,5,4);ctx.fillRect(patrolEnemy.x+14,patrolEnemy.y-4,5,4); }
+    function drawCabin() { const cX=180,cY=70;ctx.fillStyle='rgba(0,0,0,0.3)';ctx.fillRect(cX-10,cY+80,140,20);ctx.fillStyle=GAME_CONFIG.colors.houseWall;ctx.fillRect(cX,cY,120,90);ctx.fillStyle=GAME_CONFIG.colors.houseRoof;ctx.beginPath();ctx.moveTo(cX-15,cY);ctx.lineTo(cX+60,cY-45);ctx.lineTo(cX+135,cY);ctx.closePath();ctx.fill();ctx.fillStyle='#6c757d';ctx.fillRect(cX+85,cY-40,16,25);ctx.fillStyle='#7f5539';ctx.fillRect(cX+45,cY+45,30,45);ctx.fillStyle='#ffd166';ctx.fillRect(cX+68,cY+68,4,4);ctx.fillStyle='#ffb703';ctx.fillRect(cX+15,cY+25,24,24);ctx.fillRect(cX+80,cY+25,24,24);ctx.fillStyle='#457b9d';ctx.fillRect(cX+26,cY+25,2,24);ctx.fillRect(cX+15,cY+36,24,2);ctx.fillRect(cX+91,cY+25,2,24);ctx.fillRect(cX+80,cY+36,24,2);ctx.fillStyle='#ff758f';ctx.fillRect(cX+40,cY+90,40,10); }
+
+    function drawSnoopy() {
+      const px = player.x, py = player.y;
+      ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(px+player.width/2, py+player.height-2, 10, 4, 0, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#FFFFFF'; ctx.fillRect(px+4, py+8, 16, 10); ctx.fillRect(px+6, py, 12, 10); 
+      ctx.fillStyle = '#000000';
+      if (player.facing==='left') { ctx.fillStyle='#FFFFFF'; ctx.fillRect(px+2,py+4,4,6); ctx.fillStyle='#000'; ctx.fillRect(px+2,py+4,2,2); ctx.fillRect(px+12,py+2,4,8); ctx.fillRect(px+6,py+3,2,2); }
+      else if (player.facing==='right') { ctx.fillStyle='#FFFFFF'; ctx.fillRect(px+18,py+4,4,6); ctx.fillStyle='#000'; ctx.fillRect(px+20,py+4,2,2); ctx.fillRect(px+8,py+2,4,8); ctx.fillRect(px+16,py+3,2,2); }
+      else if (player.facing==='up') { ctx.fillRect(px+4,py+2,4,8); ctx.fillRect(px+16,py+2,4,8); }
+      else { ctx.fillRect(px+4,py+2,4,8); ctx.fillRect(px+16,py+2,4,8); ctx.fillRect(px+8,py+4,2,2); ctx.fillRect(px+14,py+4,2,2); ctx.fillRect(px+10,py+7,4,2); }
+      ctx.fillStyle = '#FFFFFF'; let legOffset = (player.animFrame===1)?2:0;
+      if (player.facing==='left'||player.facing==='right'){ ctx.fillRect(px+6-legOffset,py+18,4,4); ctx.fillRect(px+14+legOffset,py+18,4,4); } else { ctx.fillRect(px+6,py+18-legOffset,4,4); ctx.fillRect(px+14,py+18+legOffset,4,4); }
+      ctx.fillStyle = '#FFFFFF'; if(player.facing==='left') ctx.fillRect(px+20,py+10-legOffset,3,3); if(player.facing==='right') ctx.fillRect(px+1,py+10-legOffset,3,3); if(player.facing==='up'||player.facing==='down'){if(player.animFrame===1)ctx.fillRect(px+18,py+14,3,3);else ctx.fillRect(px+3,py+14,3,3);}
+      // Nome
+      if (!(gameState === 'KIDNAP_SCENE' && sceneTimer > 60 && sceneTimer < 150)) {
+        ctx.fillStyle = '#fff'; ctx.font = '8px "Press Start 2P", monospace'; ctx.textAlign = 'center'; ctx.fillText(GAME_CONFIG.names.snoopy, px+player.width/2, py - 4); ctx.textAlign = 'left';
+      }
+    }
+
+    function drawGirl() {
+      const px = girlPlayer.x, py = girlPlayer.y;
+      ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(px+girlPlayer.width/2, py+girlPlayer.height-2, 8, 4, 0, 0, Math.PI*2); ctx.fill();
+      // Corpo/Roupa
+      ctx.fillStyle = '#c9184a'; ctx.fillRect(px+2, py+10, 14, 12);
+      ctx.fillStyle = '#8d5524'; ctx.fillRect(px+3, py+2, 12, 8); // Rosto negra
+      ctx.fillStyle = '#7209b7'; ctx.fillRect(px+2, py, 14, 4); // Cabelo
+      if (girlPlayer.facing === 'left' || girlPlayer.facing === 'right') { ctx.fillRect(px+6, py+2, 6, 14); } else { ctx.fillRect(px+1, py+2, 4, 14); ctx.fillRect(px+13, py+2, 4, 14); } // Rabo de cavalo/lados
+      
+      if (girlPlayer.facing !== 'up') { ctx.fillStyle='#000'; ctx.fillRect(px+5, py+5, 2,2); ctx.fillRect(px+11, py+5, 2,2); }
+      
+      ctx.fillStyle = '#101010'; let legOffset = (girlPlayer.animFrame===1)?-2:2;
+      ctx.fillRect(px+4+legOffset, py+22, 4, 4); ctx.fillRect(px+10-legOffset, py+22, 4, 4);
+      
+      // Espada
+      if (girlPlayer.hasWeapon) {
+        ctx.fillStyle = '#fcefb4';
+        if (girlPlayer.facing === 'right' || girlPlayer.facing === 'down') ctx.fillRect(px+16, py+10 - (girlPlayer.animFrame*4), 4, 14);
+        if (girlPlayer.facing === 'left') ctx.fillRect(px-2, py+10 - (girlPlayer.animFrame*4), 4, 14);
+      }
+      // Nome
+      ctx.fillStyle = '#fff'; ctx.font = '8px "Press Start 2P", monospace'; ctx.textAlign = 'center'; ctx.fillText(GAME_CONFIG.names.girl, px+girlPlayer.width/2, py - 4); ctx.textAlign = 'left';
+    }
+
+    function drawNPC() {
+      const px = caveNPC.x, py = caveNPC.y;
+      ctx.fillStyle = '#457b9d'; ctx.fillRect(px+2, py+10, 16, 12); // Roupa azul
+      ctx.fillStyle = '#ffdbac'; ctx.fillRect(px+4, py+2, 12, 8); // Rosto
+      ctx.fillStyle = '#a8dadc'; ctx.fillRect(px+4, py, 12, 4); // Cabelo branco/cinza
+      ctx.fillStyle = '#000'; ctx.fillRect(px+6, py+5, 2,2); ctx.fillRect(px+12, py+5, 2,2); // Olhos
+      ctx.fillStyle = '#1d3557'; ctx.fillRect(px+4, py+22, 4, 4); ctx.fillRect(px+12, py+22, 4, 4); // Botas
+      ctx.fillStyle = '#fcefb4'; ctx.fillRect(px-5, py+10, 4, 18); // Segurando a arma (Cajado/Espada)
+      // Nome
+      ctx.fillStyle = '#fff'; ctx.font = '8px "Press Start 2P", monospace'; ctx.textAlign = 'center'; ctx.fillText(GAME_CONFIG.names.npc, px+caveNPC.width/2, py - 4); ctx.textAlign = 'left';
+    }
+
+    function drawBigMonster() {
+      const px = bigMonster.x, py = bigMonster.y;
+      if (bigMonster.hitFlash > 0) ctx.fillStyle = '#FFF'; else ctx.fillStyle = '#220022';
+      ctx.beginPath(); ctx.arc(px+20, py+20, 20, 0, Math.PI*2); ctx.fill();
+      // Olhos assustadores vermelhos
+      if (bigMonster.hitFlash === 0) { ctx.fillStyle = '#d90429'; ctx.fillRect(px+10, py+12, 6, 4); ctx.fillRect(px+24, py+12, 6, 4); }
+      // Tentaculos
+      ctx.fillStyle = (bigMonster.hitFlash > 0) ? '#FFF' : '#220022';
+      let wiggle = Math.sin(Date.now()/150) * 5;
+      ctx.fillRect(px+5, py+35+wiggle, 8, 15); ctx.fillRect(px+25, py+35-wiggle, 8, 15);
+    }
+
+    function drawForegroundTrees() { for(let y=50;y<MAP_HEIGHT;y+=120){drawPixelTree(40,y);drawPixelTree(410,y+50);drawPixelTree(-80,y+30);drawPixelTree(530,y-20);drawPixelTree(-200,y+80);drawPixelTree(650,y+10);} }
+    function drawPixelTree(tx,ty) { ctx.fillStyle='#4a3525';ctx.fillRect(tx-6,ty+20,12,20);ctx.fillStyle=GAME_CONFIG.colors.grassDark;ctx.beginPath();ctx.arc(tx,ty,24,0,Math.PI*2);ctx.fill();ctx.fillStyle='#38b000';ctx.beginPath();ctx.arc(tx-4,ty-4,18,0,Math.PI*2);ctx.fill(); }
+    function drawParticles() { particles.forEach(p=>{ctx.fillStyle=`rgba(255,239,158,${p.alpha})`;ctx.fillRect(p.x,p.y,p.size,p.size);}); }
+    function drawHeartParticles() { heartParticles.forEach(hp=>{ctx.fillStyle=`rgba(255,117,143,${hp.alpha})`;ctx.font=`${hp.size}px monospace`;ctx.fillText('❤️',hp.x,hp.y);}); }
+
+    /* ==========================================================================
+       6. MODAIS
+       ========================================================================== */
+    function openMemoryModal(orbId) {
+      gameState = 'MODAL';
+      const memory = GAME_CONFIG.memories.find(m => m.id === orbId) || GAME_CONFIG.memories[0];
+      document.getElementById('modal-memory-title').innerText = memory.title;
+      document.getElementById('modal-memory-text').innerText = memory.text;
+      const photoFrame = document.getElementById('modal-memory-photo');
+      const pos = memory.position ? `style="object-position: ${memory.position};"` : "";
+      if (memory.image && memory.image.trim() !== "") photoFrame.innerHTML = `<img src="${memory.image}" alt="Foto" class="foto-memoria" ${pos}>`;
+      else photoFrame.innerHTML = `<div class="placeholder-photo"><span>📷</span><p>FOTO AQUI</p><p style="font-size:12px;opacity:0.8;">(Substitua no HTML)</p></div>`;
+      document.getElementById('memory-modal').classList.add('active');
+    }
+
+    function triggerVictoryCutscene() {
+      gameState = 'CUTSCENE'; audio.sfxWin(); document.getElementById('mobile-controls').style.display = 'none';
+      setTimeout(() => { document.getElementById('final-modal').classList.add('active'); }, 500);
+    }
+
+    function openFinalEnvelope() {
+      document.getElementById('envelope-element').classList.add('open'); audio.sfxPickup();
+      setTimeout(() => {
+        document.getElementById('envelope-step').style.display = 'none'; document.getElementById('letter-step').style.display = 'block';
+        document.getElementById('final-title').innerText = GAME_CONFIG.finalLetter.title; document.getElementById('final-text').innerText = GAME_CONFIG.finalLetter.text;
+        const photoFrame = document.getElementById('final-photo');
+        if (GAME_CONFIG.finalLetter.image && GAME_CONFIG.finalLetter.image.trim() !== "") photoFrame.innerHTML = `<img src="${GAME_CONFIG.finalLetter.image}" alt="Final" class="foto-memoria">`;
+        else photoFrame.innerHTML = `<div class="placeholder-photo"><span>🖼️</span><p>FOTO DO CASAL AQUI</p><p style="font-size:12px;opacity:0.8;">(Substitua na config)</p></div>`;
+        gameState = 'END';
+      }, 700);
+    }
+
+    /* ==========================================================================
+       7. CONTROLES E EVENTOS
+       ========================================================================== */
+    function setupControls() {
+      window.addEventListener('keydown', (e) => {
+        if (['ArrowUp', 'KeyW'].includes(e.code)) keys.up = true;
+        if (['ArrowDown', 'KeyS'].includes(e.code)) keys.down = true;
+        if (['ArrowLeft', 'KeyA'].includes(e.code)) keys.left = true;
+        if (['ArrowRight', 'KeyD'].includes(e.code)) keys.right = true;
+        if (['Space', 'Enter'].includes(e.code)) keys.action = true;
+      });
+      window.addEventListener('keyup', (e) => {
+        if (['ArrowUp', 'KeyW'].includes(e.code)) keys.up = false;
+        if (['ArrowDown', 'KeyS'].includes(e.code)) keys.down = false;
+        if (['ArrowLeft', 'KeyA'].includes(e.code)) keys.left = false;
+        if (['ArrowRight', 'KeyD'].includes(e.code)) keys.right = false;
+      });
+
+      document.getElementById('game-container').addEventListener('pointerdown', (e) => {
+        if (e.target.id === 'btn-back-hud' || e.target.id === 'audio-toggle' || e.target.id === 'mobile-toggle') return;
+        if (gameState === 'CAVE_DIALOGUE' || gameState === 'CAVE_BATTLE') keys.action = true;
+      });
+
+      document.getElementById('start-btn').addEventListener('click', () => {
+        audio.init(); audio.muted = false; audio.startBGM();
+        document.getElementById('start-screen').classList.add('hidden');
+        gameState = 'PLAYING_SURFACE';
+      });
+
+      document.getElementById('btn-back-start').addEventListener('click', voltarParaFases);
+      document.getElementById('btn-back-hud').addEventListener('click', voltarParaFases);
+      document.getElementById('btn-back-end').addEventListener('click', voltarParaFases);
+      document.getElementById('modal-close-btn').addEventListener('click', () => { document.getElementById('memory-modal').classList.remove('active'); gameState = 'PLAYING_SURFACE'; });
+      document.getElementById('envelope-step').addEventListener('click', openFinalEnvelope);
+      document.getElementById('replay-btn').addEventListener('click', voltarParaFases);
+      document.getElementById('audio-toggle').addEventListener('click', () => { audio.muted = !audio.muted; document.getElementById('audio-toggle').innerText = audio.muted ? '🔇' : '🔊'; });
+
+      // Mobile Mode Logic
+      const mobileToggleBtn = document.getElementById('mobile-toggle');
+      let isMobileMode = localStorage.getItem('isMobileMode');
+      
+      if (isMobileMode === null) {
+        isMobileMode = (window.innerWidth <= 768 || ('ontouchstart' in window) || navigator.maxTouchPoints > 0) ? 'true' : 'false';
+      }
+      
+      function applyMobileMode() {
+        if (isMobileMode === 'true') {
+          document.body.classList.add('mobile-mode');
+          mobileToggleBtn.style.background = '#ff758f';
+        } else {
+          document.body.classList.remove('mobile-mode');
+          mobileToggleBtn.style.background = 'rgba(30, 15, 35, 0.85)';
+        }
+        localStorage.setItem('isMobileMode', isMobileMode);
+      }
+      
+      applyMobileMode();
+      
+      mobileToggleBtn.addEventListener('click', () => {
+        isMobileMode = isMobileMode === 'true' ? 'false' : 'true';
+        applyMobileMode();
+      });
+
+      const dpadMap = { 'dpad-up': 'up', 'dpad-down': 'down', 'dpad-left': 'left', 'dpad-right': 'right' };
+      Object.keys(dpadMap).forEach(id => {
+        const btn = document.getElementById(id); const dir = dpadMap[id];
+        const startMove = (e) => { e.preventDefault(); keys[dir] = true; btn.classList.add('active'); };
+        const stopMove = (e) => { e.preventDefault(); keys[dir] = false; btn.classList.remove('active'); };
+        btn.addEventListener('touchstart', startMove); btn.addEventListener('touchend', stopMove);
+        btn.addEventListener('mousedown', startMove); btn.addEventListener('mouseup', stopMove);
+      });
+    }
+
+    /* ==========================================================================
+       8. LOOP PRINCIPAL DO JOGO
+       ========================================================================== */
+    function gameLoop() {
+      updateGameLogic();
+      render();
+      requestAnimationFrame(gameLoop);
+    }
+
+    window.addEventListener('load', () => {
+      resizeCanvas(); resetGameState(); renderPhaseCards(); setupControls(); gameLoop();
+    });
+  </script>
+</body>
+</html>
